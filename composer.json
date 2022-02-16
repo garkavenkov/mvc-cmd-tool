@@ -2,7 +2,7 @@
     "name": "garkavenkov/mvc-cmd-tool",
     "description": "Command line tool for MVC Framework",
     "type": "library",
-    "bin": ["bin/mvc"],
+    "bin": ["src/mvc"],
     "license": "MIT",
     "authors": [
         {
