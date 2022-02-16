@@ -1,0 +1,214 @@
+#!/usr/bin/env php
+<?php
+
+  $commands = [
+    'server' => 'startServer',
+    'make:controller' => 'makeController',
+    'make:model'  =>  'makeModel'
+  ];
+
+  if ($argc == 1) {  
+    echo  "Usage:\n";
+    echo  "  command [options] [arguments]\n";
+    exit(0);
+  } else {
+    array_shift($argv);
+  }
+
+  $command = array_shift($argv);
+  
+  if (array_key_exists($command, $commands)) {
+    call_user_func($commands[$command], $argv);    
+  } else {    
+    exit("Command $command does not exists.\n");
+  }
+
+function startServer($argv) {
+  echo "Starting local server\n";
+  
+  $host = array_shift($argv) ?: '127.0.0.1' ;
+  $port = array_shift($argv) ?: 8080;
+  $www = array_shift($argv)  ?: 'public';
+ 
+  while(true) 
+  {
+    $connection = @fsockopen($host, $port);    
+    if (is_resource($connection)) {      
+      echo "Port: $port is already used. Will try next port\n";
+      $port++;
+      fclose($connection);
+    } else {
+      
+      break;
+    }    
+  }
+  exec("php -S $host:$port -t $www");
+}
+
+// Create Controller
+function makeController($argv) {  
+
+  if (count($argv) == 0) {
+    echo "Укажите наименование контролера\n";
+    die();
+  }
+  
+  $controller_name = array_shift($argv);
+  
+  $methods = [
+    'index' => [
+      'comment' => 'Display a listing of the resource.'
+    ],
+    'show' => [
+      'comment' =>  'Display the specified resource.',
+      'params'  =>  ['int|$id']
+    ],
+    'create'  => [
+      'comment' => 'Show the form for creating a new resource.',
+    ], 
+    'store' =>  [
+      'comment' =>  'Show the form for creating a new resource.',
+      'params'  =>  ['Request|$request'],
+    ], 
+    'edit'  =>  [
+      'comment' =>  'Show the form for editing the specified resource.',
+      'params'  =>  ['int|$id']
+    ],
+    'update'  => [
+      'comment' => 'Update the specified resource in storage.',
+      'params'  => ['Request|$request', 'int|$id'],
+    ],   
+    'destroy' =>  [
+      'comment' => 'Remove the specified resource from storage.',
+      'params'  =>  ['int|$id']
+    ]
+  ];
+
+  $type = array_shift($argv);
+  if ($type == "--api") {        
+      unset($methods['create']);
+      unset($methods['edit']);    
+  } 
+  
+  // Chech if argument --route=<route> exists
+  // if exists and type either --api -r|--resource
+  // make routes based on methods
+  // if type is not passed (i.g. bare controller),
+  // than omit argument [--route]
+
+  // get     posts           PostsController@index      -r | --api
+  // get     posts/{id}      PostsController@show       -r | --api
+  // get     posts/{id}/edit PostsController@edit       -r 
+  // get     posts/create    PostsController@create     -r
+  // post    posts           PostsController@store      -r | --api
+  // patch   posts/1         PostsController@update     -r | --api
+  // delete  posts/1         PostsController@destroy    -r | --api
+
+  $content  = "<?php\n";
+  $content .= "\n";
+  $content .= "namespace App\Http\Controllers;\n";
+  $content .= "\n";
+  $content .= "use MVC\Framework\Base\Controller;\n";
+  $content .= "\n";
+  $content .= "class $controller_name extends Controller\n";
+  $content .= "{\n";
+  $content .= "\n";
+  foreach($methods as $method => $info) {    
+    if ($info['comment']) {
+      $content .= "   /**\n";      
+      $content .= "    * {$info['comment']}\n";
+      $params = [];
+      if (isset($info['params'])) {
+        $content .= "    *\n";
+        foreach($info['params'] as $param) {
+          $parts = explode('|', $param);
+          $content .= "    * @param\t$parts[0]\t\t{$parts[1]}\n";
+          $params[] = $parts[1];
+        }
+      } else {
+        $content .= "    *\n";
+      }
+      $content .= "    * @return\tHttp\n";
+      $content .= "    */\n";      
+    }    
+    $content .= "   public function $method(" . join(', ', $params) .")\n";
+    $content .= "   {\n";
+    $content .= "   }\n";
+    $content .= "   \n";
+  }
+  $content .= "}\n";
+  
+  if (createFile($controller_name, 'Http/Controllers', $content, 'Controller')) {
+    echo "Controller has been successfully created.\n";
+  }
+  
+}
+
+// Create Model
+function makeModel($argv) {  
+
+  if (count($argv) == 0) {
+    echo "Укажите наименование модели\n";
+    die();
+  }
+  
+  $model_name = array_shift($argv);
+
+  $content  = "<?php\n";
+  $content .= "\n";
+  $content .= "namespace App\Models;\n";
+  $content .= "\n";
+  $content .= "use MVC\Framework\Base\Model;\n";
+  $content .= "\n";
+  $content .= "class $model_name extends Model\n";
+  $content .= "{\n";
+  $content .= "\n";  
+  $content .= "}\n";
+
+  if (createFile($model_name, 'Models', $content, 'model')) {
+    echo "Model has been successfully created.\n";
+  }
+  
+}
+
+// Create File
+function createFile($name, $path, $content, $type) {
+  
+  $path = array_map(
+            function($p) { return ucfirst($p);}, 
+            explode('/', $path)
+          );
+  
+  $path_segments = array_merge([__DIR__, 'app'], array_values($path));
+  
+  $file_path =  join(DIRECTORY_SEPARATOR, $path_segments);  
+  
+  if (!file_exists($file_path)) {    
+    if (!mkdir($file_path, 0777, true)) {
+      echo "Cannot create directory $file_path. Check your rights on this folder.\n";
+    }
+  }
+  
+  $file_name = $file_path . DIRECTORY_SEPARATOR . $name . '.php';
+  if (file_exists($file_name)) {
+    echo ucfirst($type) . " with this name is already exists.\n";
+    die();    
+  }
+
+  $fh = fopen($file_name, 'w+');
+  if (!$fh) {    
+    echo "Cannot create " . lcfirst($type) . ". Check rights on catalog.\n";
+    die();
+  }
+  
+  if (fwrite($fh, $content) === FALSE) {
+    echo "Не могу произвести запись в файл ($file_name)\n";
+    fclose($fh);
+    return false;
+  }
+  
+  fclose($fh);  
+  return true;
+}
+
+?>

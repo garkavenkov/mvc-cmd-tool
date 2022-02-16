@@ -1,0 +1,15 @@
+{
+    "name": "garkavenkov/mvc-cmd-tool",
+    "description": "Command line tool for MVC Framework",
+    "type": "library",
+    "bin": ["bin/mvc"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Maksim Garkavenkov",
+            "email": "maksim.garkavenkov@gmail.com"
+        }
+    ],    
+    "minimum-stability": "dev",
+    "require": {}
+}
