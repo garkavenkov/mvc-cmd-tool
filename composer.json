@@ -3,6 +3,9 @@
     "description": "Command line tool for MVC Framework",
     "type": "library",
     "bin": ["src/mvc"],
+    "config": {
+        "bin-dir": "./"
+    },
     "license": "MIT",
     "authors": [
         {
